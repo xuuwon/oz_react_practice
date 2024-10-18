@@ -1,4 +1,4 @@
-import { Component, useEffect, useState } from "react";
+import { Component, useEffect, useRef, useState } from "react";
 import "./App.css";
 import { Route, Routes, useNavigate } from "react-router-dom";
 import Detail from "./page/Detail";
@@ -6,108 +6,72 @@ import Search from "./page/Search";
 import Main from "./page/Main";
 
 function App() {
-  const [data, setData] = useState([]);
-
-  useEffect(() => {
-    fetch("http://localhost:3000/data")
-      .then((res) => res.json())
-      .then((res) => setData(res));
-  }, []) // 처음 불러올 때만 데이터를 받아오도록 빈 배열 추가
+  const {count, increment, decrement} = useCounter(0, 5);
+  
+  const { loading: loading1 , data: data1 } = useFetch("http://localhost:3000/data")
+  const { loading: loading2 , data: data2 } = useFetch("http://localhost:3001/data")
+  const { loading: loading3 , data: data3 } = useFetch("http://localhost:3002/data")
 
   return(
     <>
-      <h1>데이터 목록</h1>
-      {data.map(el => <div key={el.id}>{el.content}</div>)}
-      <MouseFollower />
-      <ScrollIndicator />
-      <AlertTimer />
-      <div style={{height: "300vh"}}></div>
+      <div>count: {count}</div>
+      <button onClick={increment}>+</button>
+      <button onClick={decrement}>-</button>
+
+      {!loading1 && (
+        <ul>
+          {data1.map(el => <li key={'data1' + el.id}>{el.content}</li>)}
+        </ul>
+      )}
+      {!loading2 && (
+        <ul>
+          {data2.map(el => <li key={'data2' + el.id}>{el.content}</li>)}
+        </ul>
+      )}
+      {!loading3 && (
+        <ul>
+          {data3.map(el => <li key={'data3' + el.id}>{el.content}</li>)}
+        </ul>
+      )}
     </>
   )
 }
 
-const MouseFollower = () => {
-  const [position, setPosition] = useState({ x: 0, y: 0});
-
-  useEffect(() => {
-    const handleMouseMove = (event) => {
-      setPosition({ x: event.clientX, y: event.clientY })
-    }
-
-    window.addEventListener('mousemove', handleMouseMove)
-
-    return () => { // cleanup 함수
-      window.removeEventListener('mousemove', handleMouseMove)
-    };
-  })
-
-  return (
-    <div style={{
-      position: "fixed", 
-      top: position.y,
-      left: position.x,
-      width: "20px",
-      height: "20px",
-      borderRadius: "50%",
-      backgroundColor: "blue",
-      transform: "translate(-50%, -50%)",
-      pointerEvents: "none" // 다른 버튼 클릭 이벤트를 막지 않도록
-    }}></div>
-  )
-}
-
-
-const ScrollIndicator = () => {
-  const [scrollWidth, setScrollWidth] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const windowHeight = 
-      document.documentElement.scrollHeight
-      - document.documentElement.clientHeight
-
-      const scrollPercentage = (scrollTop / windowHeight) * 100;
-
-      setScrollWidth(scrollPercentage);
-    }
-
-    window.addEventListener('scroll', handleScroll);
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    }
-  })
-
-  return (
-    <div style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: `${scrollWidth}%`,
-      height: "10px",
-      backgroundColor: "blue"
-    }}></div>
-  )
-}
-
-const AlertTimer = () => {
-  const [showAlert, setShowAlert] = useState(true);
-
-  useEffect(() => {
-    const setTimeoutId = setTimeout(() => {
-      showAlert === true ? alert('시간 초과') : null
-    }, 3000)
-
-    return () => {
-      clearTimeout(setTimeoutId);
-    }
-  })
-
-  return (
-    <button onClick={() => setShowAlert(false)}>빨리 클릭!!!</button>
-  )
-}
-
-
 export default App;
+
+// 커스텀 훅
+const useFetch = (url) => { // url에 요청을 보내고 데이터를 받아오는 커스텀 훅
+  const [loading, setLoading] = useState(true); // 로딩 완료되면 false
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null); // error 관리하는 상태
+
+  useEffect(() => {
+    fetch(url)
+      .then((res) => res.json())
+      .then((res) => { // 데이터 받아왔으면 false로
+        setData(res)
+        setLoading(false)
+      })
+      .catch((err) => {
+        setError(err)
+        setLoading(false)
+      })
+  }, [url])
+
+  return { loading, data, error };
+}
+
+
+const useCounter = (initialValue = 0, step = 1) => {
+  const [count, setCount] = useState(initialValue);
+
+  const increment = () => {
+    setCount((prev) => prev + step)
+  }
+
+  const decrement = () => {
+    setCount((prev) => prev - step)
+  }
+  
+  return {count, increment, decrement}
+}
